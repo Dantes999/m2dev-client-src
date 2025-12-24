@@ -9,7 +9,7 @@
 #endif
 
 #ifdef _DEBUG
-#define _PACKETDUMP
+// #define _PACKETDUMP
 #endif
 
 #ifndef _IMPROVED_PACKET_ENCRYPTION_

@@ -1,7 +1,4 @@
 #pragma once
-#define MA_NO_WASAPI
-#define MA_ENABLE_DSOUND
-#define MA_ENABLE_WINMM
 #include <miniaudio.h>
 
 inline constexpr float CS_CLIENT_FPS = 61.0f;

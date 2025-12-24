@@ -130,67 +130,69 @@ void GetTimeString(char * str, time_t ct)
 	_snprintf(str, 15, "%04d%02d%02d%02d%02d%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
-bool CProperty::ReadFromMemory(const void * c_pvData, int iLen, const char * c_pszFileName)
+bool CProperty::ReadFromMemory(const void* c_pvData, int iLen, const char* c_pszFileName)
 {
-	const char* pStart = (const char*)c_pvData;
-	const char* pcData = pStart;
+    const char* pStart = (const char*)c_pvData;
+    const char* pcData = pStart;
 
-	if (*(DWORD *) pcData != MAKEFOURCC('Y', 'P', 'R', 'T'))
-		return false;
+    if (*(DWORD*)pcData != MAKEFOURCC('Y', 'P', 'R', 'T'))
+        return false;
 
-	pcData += sizeof(DWORD);
-
-
-	while (pcData < pStart + iLen && (*pcData == '\r' || *pcData == '\n' || *pcData == ' ' || *pcData == '\t'))
-		++pcData;
+    pcData += sizeof(DWORD);
 
 
-	int textLen = iLen - int(pcData - pStart);
-	if (textLen <= 0)
-	{
-		TraceError("CProperty::ReadFromMemory: textLen <= 0 in %s\n", c_pszFileName);
-		return false;
-	}
+    while (pcData < pStart + iLen && (*pcData == '\r' || *pcData == '\n' || *pcData == ' ' || *pcData == '\t'))
+        ++pcData;
 
-	CTokenVector stTokenVector;
 
-	CMemoryTextFileLoader textFileLoader;
-	textFileLoader.Bind(textLen, pcData);
+    int textLen = iLen - int(pcData - pStart);
+    if (textLen <= 0)
+    {
+        TraceError("CProperty::ReadFromMemory: textLen <= 0 in %s\n", c_pszFileName);
+        return false;
+    }
 
-	m_stCRC.clear();
-	m_dwCRC = 0;
+    CTokenVector stTokenVector;
 
-	if (textFileLoader.GetLineCount() > 0)
-	{
-		m_stCRC = textFileLoader.GetLineString(0);
 
-		bool bAllDigits = !m_stCRC.empty() && std::all_of(m_stCRC.begin(), m_stCRC.end(), [](char c)
-		{
-			return isdigit((unsigned char)c);
-		});
+    CMemoryTextFileLoader textFileLoader;
+    textFileLoader.Bind(textLen, pcData);
 
-		DWORD startLine = 0;
+    m_stCRC.clear();
+    m_dwCRC = 0;
 
-		if (bAllDigits)
-		{
-			m_dwCRC = atoi(m_stCRC.c_str());
-			startLine = 1; 
-		}
 
-		for (DWORD i = startLine; i < textFileLoader.GetLineCount(); ++i)
-		{
-			if (!textFileLoader.SplitLine(i, &stTokenVector))
-				continue;
+    if (textFileLoader.GetLineCount() > 0)
+    {
+        m_stCRC = textFileLoader.GetLineString(0);
 
-			stl_lowers(stTokenVector[0]);
-			std::string stKey = stTokenVector[0];
+        bool bAllDigits = !m_stCRC.empty() && std::all_of(m_stCRC.begin(), m_stCRC.end(), [](char c)
+            {
+                return isdigit((unsigned char)c);
+            });
 
-			stTokenVector.erase(stTokenVector.begin());
-			PutVector(stKey.c_str(), stTokenVector);
-		}
-	}
+        DWORD startLine = 0;
 
-	return true;
+        if (bAllDigits)
+        {
+            m_dwCRC = atoi(m_stCRC.c_str());
+            startLine = 1;
+        }
+
+        for (DWORD i = startLine; i < textFileLoader.GetLineCount(); ++i)
+        {
+            if (!textFileLoader.SplitLine(i, &stTokenVector))
+                continue;
+
+            stl_lowers(stTokenVector[0]);
+            std::string stKey = stTokenVector[0];
+
+            stTokenVector.erase(stTokenVector.begin());
+            PutVector(stKey.c_str(), stTokenVector);
+        }
+    }
+
+    return true;
 }
 
 void CProperty::Clear()
