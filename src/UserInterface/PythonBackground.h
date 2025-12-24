@@ -130,6 +130,9 @@ public:
 	TMapInfo* GlobalPositionToMapInfo(DWORD dwGlobalX, DWORD dwGlobalY);
 	const char* GetWarpMapName();
 
+	void SetMapIndex(long lMapIndex);
+	long GetMapIndex();
+
 protected:
 	void __CreateProperty();
 	bool __IsSame(std::set<int> & rleft, std::set<int> & rright);
@@ -152,6 +155,8 @@ private:
 
 	DWORD m_dwBaseX;
 	DWORD m_dwBaseY;
+
+	long m_lMapIndex;
 
 	TVIEWDISTANCESET m_ViewDistanceSet[NUM_DISTANCE_SET];
 

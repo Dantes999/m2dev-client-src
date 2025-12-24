@@ -47,6 +47,14 @@ static const char * sc_apszPythonLibraryFilenames[] =
 	"\n",
 };
 
+char gs_szErrorString[512] = "";
+
+void ApplicationSetErrorString(const char* szErrorString)
+{
+	strncpy(gs_szErrorString, szErrorString, sizeof(gs_szErrorString) - 1);
+	gs_szErrorString[sizeof(gs_szErrorString) - 1] = '\0';
+}
+
 bool CheckPythonLibraryFilenames()
 {
 	for (int i = 0; *sc_apszPythonLibraryFilenames[i] != '\n'; ++i)
@@ -68,6 +76,78 @@ bool CheckPythonLibraryFilenames()
 
 	return true;
 }
+
+struct ApplicationStringTable 
+{
+	HINSTANCE m_hInstance;
+	std::map<DWORD, std::string> m_kMap_dwID_stLocale;
+} gs_kAppStrTable;
+
+void ApplicationStringTable_Initialize(HINSTANCE hInstance)
+{
+	gs_kAppStrTable.m_hInstance=hInstance;
+}
+
+const std::string& ApplicationStringTable_GetString(DWORD dwID, LPCSTR szKey)
+{
+	char szBuffer[512];
+	char szIniFileName[256];
+	char szLocale[256];
+
+	::GetCurrentDirectory(sizeof(szIniFileName), szIniFileName);
+	if(szIniFileName[lstrlen(szIniFileName)-1] != '\\')
+		strncat(szIniFileName, "\\", sizeof(szIniFileName) - strlen(szIniFileName) - 1);
+	strncat(szIniFileName, "metin2client.dat", sizeof(szIniFileName) - strlen(szIniFileName) - 1);
+
+	strncpy(szLocale, LocaleService_GetLocalePath(), sizeof(szLocale) - 1);
+	szLocale[sizeof(szLocale) - 1] = '\0';
+
+	if(strnicmp(szLocale, "locale/", strlen("locale/")) == 0)
+	{
+		strncpy(szLocale, LocaleService_GetLocalePath() + strlen("locale/"), sizeof(szLocale) - 1);
+		szLocale[sizeof(szLocale) - 1] = '\0';
+	}
+	::GetPrivateProfileString(szLocale, szKey, NULL, szBuffer, sizeof(szBuffer)-1, szIniFileName);
+	if(szBuffer[0] == '\0')
+		LoadString(gs_kAppStrTable.m_hInstance, dwID, szBuffer, sizeof(szBuffer)-1);
+	if(szBuffer[0] == '\0')
+		::GetPrivateProfileString("en", szKey, NULL, szBuffer, sizeof(szBuffer)-1, szIniFileName);
+	if(szBuffer[0] == '\0')
+	{
+		strncpy(szBuffer, szKey, sizeof(szBuffer) - 1);
+		szBuffer[sizeof(szBuffer) - 1] = '\0';
+	}
+
+	std::string& rstLocale=gs_kAppStrTable.m_kMap_dwID_stLocale[dwID];
+	rstLocale=szBuffer;
+
+	return rstLocale;
+}
+
+const std::string& ApplicationStringTable_GetString(DWORD dwID)
+{
+	char szBuffer[512];
+
+	LoadString(gs_kAppStrTable.m_hInstance, dwID, szBuffer, sizeof(szBuffer)-1);
+	std::string& rstLocale=gs_kAppStrTable.m_kMap_dwID_stLocale[dwID];
+	rstLocale=szBuffer;
+
+	return rstLocale;
+}
+
+const char* ApplicationStringTable_GetStringz(DWORD dwID, LPCSTR szKey)
+{
+	return ApplicationStringTable_GetString(dwID, szKey).c_str();
+}
+
+const char* ApplicationStringTable_GetStringz(DWORD dwID)
+{
+	return ApplicationStringTable_GetString(dwID).c_str();
+}
+
+////////////////////////////////////////////
+
+int Setup(LPSTR lpCmdLine); // Internal function forward
 
 bool PackInitialize(const char * c_pszFolder)
 {
@@ -99,8 +179,6 @@ bool PackInitialize(const char * c_pszFolder)
 		"metin2_patch_w20_etc",
 		"metin2_patch_dragon_rock",
 		"metin2_patch_dragon_rock_mobs",
-		"metin2_patch_dragon_rock_texcache",
-		"metin2_patch_dragon_rock_mobs_texcache",
 		"metin2_patch_etc",
 		"metin2_patch_xmas",
 		"metin2_patch_eu3",
@@ -149,6 +227,7 @@ bool PackInitialize(const char * c_pszFolder)
 		"indoormonkeydungeon1",
 		"indoormonkeydungeon2",
 		"indoormonkeydungeon3",
+		"indoorinstancelobby1",
 		"outdoortrent",
 		"outdoortrent02",
 		"outdoorguild1",
@@ -288,7 +367,54 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	LoadConfig("config/locale.cfg");
 
 	int nArgc = 0;
-	auto szArgv = CommandLineToArgv (lpCmdLine, &nArgc);
+	PCHAR* szArgv = CommandLineToArgv( lpCmdLine, &nArgc );
+
+	for( int i=0; i < nArgc; i++ ) {
+		if(szArgv[i] == 0)
+			continue;
+		if (__IsLocaleVersion(szArgv[i])) // #0000829: [M2EU] 버전 파일이 항상 생기지 않도록 수정 
+		{
+			char szModuleName[MAX_PATH];
+			char szVersionPath[MAX_PATH];
+			GetModuleFileName(NULL, szModuleName, sizeof(szModuleName));
+			snprintf(szVersionPath, sizeof(szVersionPath), "%s.version", szModuleName);
+			FILE* fp = fopen(szVersionPath, "wt");
+			if (fp)
+			{
+				extern int METIN2_GET_VERSION();
+				fprintf(fp, "r%d\n", METIN2_GET_VERSION());
+				fclose(fp);
+			}
+			bQuit = true;
+		} else if (__IsLocaleOption(szArgv[i]))
+		{
+			FILE* fp=fopen("locale.txt", "wt");
+			fprintf(fp, "service[%s] code_page[%d]", 
+				LocaleService_GetName(), LocaleService_GetCodePage());
+			fclose(fp);
+			bQuit = true;
+		} else if (__IsTimeStampOption(szArgv[i]))
+		{
+			__PrintTimeStamp();
+			bQuit = true;
+		} else if ((strcmp(szArgv[i], "--force-set-locale") == 0))
+		{
+			// locale 설정엔 인자가 두 개 더 필요함 (로케일 명칭, 데이터 경로)
+			if (nArgc <= i + 2)
+			{
+				MessageBox(NULL, "Invalid arguments", ApplicationStringTable_GetStringz(IDS_APP_NAME, "APP_NAME"), MB_ICONSTOP);
+				goto Clean;
+			}
+
+			const char* localeName = szArgv[++i];
+			const char* localePath = szArgv[++i];
+
+			LocaleService_ForceSetLocale(localeName, localePath);
+		}
+	}
+
+	if(bQuit)
+		goto Clean;
 
 	if (!CheckPythonLibraryFilenames())
 	{

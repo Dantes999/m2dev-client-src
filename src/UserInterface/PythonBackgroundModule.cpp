@@ -122,6 +122,23 @@ PyObject * backgroundGetCurrentMapName(PyObject * poSelf, PyObject * poArgs)
 	return Py_BuildValue("s", rkBG.GetWarpMapName());
 }
 
+PyObject * backgroundSetMapIndex(PyObject * poSelf, PyObject * poArgs)
+{
+	int iMapIndex;
+	if (!PyTuple_GetInteger(poArgs, 0, &iMapIndex))
+		return Py_BadArgument();
+
+	CPythonBackground& rkBG=CPythonBackground::Instance();
+	rkBG.SetMapIndex(iMapIndex);
+	return Py_BuildNone();
+}
+
+PyObject * backgroundGetMapIndex(PyObject * poSelf, PyObject * poArgs)
+{
+	CPythonBackground& rkBG=CPythonBackground::Instance();
+	return Py_BuildValue("i", rkBG.GetMapIndex());
+}
+
 PyObject * backgroundGetPickingPoint(PyObject * poSelf, PyObject * poArgs)
 {
 	CPythonBackground& rkBG=CPythonBackground::Instance();
@@ -538,6 +555,8 @@ void initBackground()
 		{ "RegisterEnvironmentData",			backgroundRegisterEnvironmentData,			METH_VARARGS },
 		{ "SetEnvironmentData",					backgroundSetEnvironmentData,				METH_VARARGS },
 		{ "GetCurrentMapName",					backgroundGetCurrentMapName,				METH_VARARGS },
+		{ "SetMapIndex",						backgroundSetMapIndex,						METH_VARARGS },
+		{ "GetMapIndex",						backgroundGetMapIndex,						METH_VARARGS },
 		{ "GetPickingPoint",					backgroundGetPickingPoint,					METH_VARARGS },
 
 		{ "BeginEnvironment",					backgroundBeginEnvironment,					METH_VARARGS },

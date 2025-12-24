@@ -213,6 +213,7 @@ CPythonBackground::CPythonBackground()
 	m_eShadowLevel=SHADOW_NONE;
 	m_dwBaseX=0;
 	m_dwBaseY=0;
+	m_lMapIndex=0;
 	m_strMapName="";
 	m_iDayMode = DAY_MODE_LIGHT;
 	m_iXMasTreeGrade = 0;
@@ -918,4 +919,14 @@ void CPythonBackground::DeleteSpecialEffect(DWORD dwID)
 {
 	CMapOutdoor& rkMap=GetMapOutdoorRef();
 	rkMap.SpecialEffect_Delete(dwID);
+}
+
+void CPythonBackground::SetMapIndex(long lMapIndex)
+{
+	m_lMapIndex = lMapIndex;
+}
+
+long CPythonBackground::GetMapIndex()
+{
+	return m_lMapIndex;
 }
