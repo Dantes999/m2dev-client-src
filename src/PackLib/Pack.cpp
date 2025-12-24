@@ -27,7 +27,17 @@ bool CPack::Open(const std::string& path, TPackFileMap& entries)
 		memcpy(&entry, m_file.data() + sizeof(TPackFileHeader) + i * sizeof(TPackFileEntry), sizeof(TPackFileEntry));
 		m_decryption.ProcessData((CryptoPP::byte*)&entry, (CryptoPP::byte*)&entry, sizeof(TPackFileEntry));
 
-		entries[entry.file_name] = std::make_pair(shared_from_this(), entry);
+		// Normalize the filename: convert backslashes to forward slashes and lowercase
+		std::string normalized_name;
+		normalized_name.resize(strlen(entry.file_name));
+		for (size_t j = 0; j < normalized_name.size(); ++j) {
+			if (entry.file_name[j] == '\\')
+				normalized_name[j] = '/';
+			else
+				normalized_name[j] = static_cast<char>(std::tolower(entry.file_name[j]));
+		}
+
+		entries[normalized_name] = std::make_pair(shared_from_this(), entry);
 
 		if (file_size < m_header.data_begin + entry.offset + entry.compressed_size) {
 			return false;
